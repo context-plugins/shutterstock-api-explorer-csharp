@@ -1,0 +1,44 @@
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using ShutterstockApiExplorer.Core.ErrorResponse;
+using ShutterstockApiExplorer.Core.Models;
+
+namespace ShutterstockApiExplorer.Errors;
+
+public sealed class DeleteImageCollectionError : ApiError
+{
+    private readonly Optional<RawError> _noContentValue;
+
+    private DeleteImageCollectionError(Optional<RawError> noContentValue, Optional<RawError> fallback) : base(fallback)
+    {
+        _noContentValue = noContentValue;
+    }
+
+    private static DeleteImageCollectionError AsNoContent(RawError value) =>
+        new(Optional<RawError>.Some(value), default);
+
+    private static DeleteImageCollectionError AsFallback(RawError value) =>
+        new(default, Optional<RawError>.Some(value));
+
+    public bool TryGetNoContent(out RawError value) => _noContentValue.TryGetValue(out value);
+
+    internal static Task<DeleteImageCollectionError> Create(HttpResponseMessage response, CancellationToken ct) =>
+        (int)response.StatusCode switch
+        {
+            400 or 401 or 403 or 404 => FromRawBody(response, ct).As(AsNoContent),
+            _ => FromRawBody(response, ct).As(AsFallback)
+        };
+}
+
+internal sealed class DeleteImageCollectionErrorResponse : IErrorResponse<DeleteImageCollectionError>
+{
+    public static DeleteImageCollectionErrorResponse Instance { get; } = new();
+
+    private DeleteImageCollectionErrorResponse()
+    {
+    }
+
+    public Task<DeleteImageCollectionError> Map(HttpResponseMessage response, CancellationToken ct) =>
+        DeleteImageCollectionError.Create(response, ct);
+}
